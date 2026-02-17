@@ -25,7 +25,6 @@ COPY patches/ ./patches/
 
 COPY packages/admin/package.json ./packages/admin/
 COPY packages/api/package.json ./packages/api/
-COPY packages/app/package.json ./packages/app/
 COPY packages/cache/package.json ./packages/cache/
 COPY packages/captcha/package.json ./packages/captcha/
 COPY packages/cassandra/package.json ./packages/cassandra/
@@ -54,8 +53,31 @@ COPY packages/virus_scan/package.json ./packages/virus_scan/
 COPY packages/worker/package.json ./packages/worker/
 COPY packages/http_client/package.json ./packages/http_client/
 COPY packages/schema/package.json ./packages/schema/
-COPY fluxer_server/package.json ./fluxer_server/
+COPY packages/app_proxy/package.json ./packages/app_proxy/
+COPY packages/date_utils/package.json ./packages/date_utils/
+COPY packages/geo_utils/package.json ./packages/geo_utils/
+COPY packages/i18n/package.json ./packages/i18n/
+COPY packages/kv_client/package.json ./packages/kv_client/
+COPY packages/limits/package.json ./packages/limits/
+COPY packages/list_utils/package.json ./packages/list_utils/
+COPY packages/locale/package.json ./packages/locale/
+COPY packages/markdown_parser/package.json ./packages/markdown_parser/
+COPY packages/media_proxy_utils/package.json ./packages/media_proxy_utils/
+COPY packages/meilisearch_search/package.json ./packages/meilisearch_search/
+COPY packages/mime_utils/package.json ./packages/mime_utils/
+COPY packages/number_utils/package.json ./packages/number_utils/
+COPY packages/openapi/package.json ./packages/openapi/
+COPY packages/time/package.json ./packages/time/
+COPY fluxer_admin/package.json ./fluxer_admin/
+COPY fluxer_api/package.json ./fluxer_api/
 COPY fluxer_app/package.json ./fluxer_app/
+COPY fluxer_app_proxy/package.json ./fluxer_app_proxy/
+COPY fluxer_integration/package.json ./fluxer_integration/
+COPY fluxer_marketing/package.json ./fluxer_marketing/
+COPY fluxer_media_proxy/package.json ./fluxer_media_proxy/
+COPY fluxer_queue/package.json ./fluxer_queue/
+COPY fluxer_relay_directory/package.json ./fluxer_relay_directory/
+COPY fluxer_server/package.json ./fluxer_server/
 
 RUN pnpm install --frozen-lockfile
 
@@ -72,6 +94,7 @@ RUN pnpm --filter @fluxer/config generate
 COPY fluxer_server/ ./fluxer_server/
 
 RUN pnpm --filter @fluxer/marketing build:css
+RUN pnpm --filter @fluxer/admin build:css
 
 COPY fluxer_media_proxy/data/model.onnx ./fluxer_media_proxy/data/model.onnx
 
@@ -107,12 +130,29 @@ RUN LOGGER_LEVEL=${LOGGER_LEVEL} envsubst '${LOGGER_LEVEL}' < fluxer_gateway/con
 
 FROM deps AS app-build
 
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* \
+	&& curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.93.0 --target wasm32-unknown-unknown --profile minimal \
+	&& . "$HOME/.cargo/env" && rustup target add wasm32-unknown-unknown
+
 COPY tsconfigs /usr/src/app/tsconfigs
 
 COPY packages/ ./packages/
 COPY fluxer_app/ ./fluxer_app/
+COPY fluxer_server/build-config.json /tmp/build-config.json
 
-RUN cd fluxer_app && pnpm build
+ENV FLUXER_CONFIG=/tmp/build-config.json
+
+RUN sed -i "s|const CDN_ENDPOINT = 'https://fluxerstatic.com';|const CDN_ENDPOINT = '';|" fluxer_app/rspack.config.mjs
+
+RUN . "$HOME/.cargo/env" && cd fluxer_app && \
+	pnpm wasm:codegen && \
+	pnpm generate:colors && \
+	pnpm generate:masks && \
+	pnpm generate:css-types && \
+	pnpm lingui:compile && \
+	rm -rf dist && \
+	pnpm exec rspack build --mode production && \
+	pnpm tsx scripts/build-sw.mjs
 
 FROM node:24-trixie-slim AS production
 
@@ -134,6 +174,7 @@ LABEL org.opencontainers.image.created="${BUILD_TIMESTAMP}"
 WORKDIR /usr/src/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+	ca-certificates \
 	curl \
 	ffmpeg \
 	&& rm -rf /var/lib/apt/lists/*
@@ -149,6 +190,22 @@ COPY --from=build /usr/src/app/pnpm-workspace.yaml ./
 COPY --from=build /usr/src/app/package.json ./
 COPY --from=gateway-build /usr/src/app/gateway/fluxer_gateway/_build/prod/rel/fluxer_gateway /opt/fluxer_gateway
 COPY --from=app-build /usr/src/app/fluxer_app/dist /usr/src/app/assets
+
+COPY fluxer_server/fonts/ibm-plex.css /usr/src/app/assets/fonts/ibm-plex.css
+COPY fluxer_static_dl/web/ /usr/src/app/assets/web/
+COPY fluxer_static_dl/avatars/ /usr/src/app/assets/avatars/
+COPY fluxer_static_dl/badges/ /usr/src/app/assets/badges/
+
+RUN mkdir -p /usr/src/app/assets/fonts/IBMPlexSans /usr/src/app/assets/fonts/IBMPlexMono && \
+	cd /tmp && \
+	npm pack @ibm/plex-sans@1.1.0 --pack-destination /tmp && \
+	tar xzf /tmp/ibm-plex-sans-*.tgz && \
+	cp /tmp/package/fonts/complete/woff2/*.woff2 /usr/src/app/assets/fonts/IBMPlexSans/ && \
+	rm -rf /tmp/package /tmp/ibm-plex-sans-*.tgz && \
+	npm pack @ibm/plex-mono@1.1.0 --pack-destination /tmp && \
+	tar xzf /tmp/ibm-plex-mono-*.tgz && \
+	cp /tmp/package/fonts/complete/woff2/*.woff2 /usr/src/app/assets/fonts/IBMPlexMono/ && \
+	rm -rf /tmp/package /tmp/ibm-plex-mono-*.tgz
 
 RUN mkdir -p /usr/src/app/data/storage && \
 	mkdir -p /usr/src/app/data/db && \
@@ -195,5 +252,7 @@ ENV RELEASE_CHANNEL=${RELEASE_CHANNEL}
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 	CMD curl -f http://localhost:8080/_health || exit 1
+
+WORKDIR /usr/src/app/fluxer_server
 
 ENTRYPOINT ["pnpm", "start"]

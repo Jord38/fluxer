@@ -286,6 +286,15 @@ function createAppServerInitializer(context: ServiceInitializationContext): Serv
 	const publicUrlHost = new URL(requireValue(config.endpoints.app, 'endpoints.app')).origin;
 	const mediaUrlHost = new URL(requireValue(config.endpoints.media, 'endpoints.media')).origin;
 
+	const connectSources: string[] = ["'self'", 'wss:', 'ws:', publicUrlHost];
+	const voiceUrl = config.integrations?.voice?.url;
+	if (voiceUrl) {
+		try {
+			const voiceOrigin = new URL(voiceUrl.replace('wss://', 'https://').replace('ws://', 'http://')).origin;
+			connectSources.push(voiceOrigin);
+		} catch {}
+	}
+
 	const appServer = createAppServer({
 		staticDir,
 		logger: componentLogger,
@@ -299,10 +308,10 @@ function createAppServerInitializer(context: ServiceInitializationContext): Serv
 			scriptSrc: ["'self'", "'unsafe-inline'"],
 			styleSrc: ["'self'", "'unsafe-inline'"],
 			imgSrc: ["'self'", 'data:', 'blob:', publicUrlHost, mediaUrlHost],
-			connectSrc: ["'self'", 'wss:', 'ws:', publicUrlHost],
+			connectSrc: connectSources,
 			fontSrc: ["'self'"],
 			mediaSrc: ["'self'", 'blob:', mediaUrlHost],
-			frameSrc: ["'none'"],
+			frameSrc: ["'self'"],
 		},
 	});
 

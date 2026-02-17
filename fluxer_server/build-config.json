@@ -1,0 +1,94 @@
+{
+  "env": "production",
+  "domain": {
+    "base_domain": "chat.jord.cloud",
+    "public_scheme": "https",
+    "public_port": 443,
+    "static_cdn_domain": "chat.jord.cloud"
+  },
+  "database": {
+    "backend": "sqlite",
+    "sqlite_path": "./data/fluxer.db"
+  },
+  "internal": {
+    "kv": "redis://fluxer-valkey:6379/0"
+  },
+  "s3": {
+    "access_key_id": "CHANGE_ME",
+    "secret_access_key": "CHANGE_ME",
+    "endpoint": "http://127.0.0.1:8080/s3"
+  },
+  "proxy": {
+    "trust_cf_connecting_ip": true
+  },
+  "services": {
+    "server": {
+      "port": 8080,
+      "host": "0.0.0.0",
+      "static_dir": "/usr/src/app/assets"
+    },
+    "media_proxy": {
+      "secret_key": "CHANGE_ME"
+    },
+    "admin": {
+      "secret_key_base": "CHANGE_ME",
+      "oauth_client_secret": "CHANGE_ME"
+    },
+    "marketing": {
+      "enabled": true,
+      "secret_key_base": "CHANGE_ME"
+    },
+    "gateway": {
+      "port": 8082,
+      "rpc_tcp_port": 8083,
+      "api_host": "http://127.0.0.1:8080/api",
+      "admin_reload_secret": "CHANGE_ME",
+      "media_proxy_endpoint": "http://127.0.0.1:8080/media"
+    },
+    "queue": {
+      "secret": "CHANGE_ME"
+    }
+  },
+  "gateway": {
+    "rpc_endpoint": "http://127.0.0.1:8082",
+    "rpc_secret": "CHANGE_ME"
+  },
+  "auth": {
+    "sudo_mode_secret": "CHANGE_ME",
+    "connection_initiation_secret": "CHANGE_ME",
+    "passkeys": {
+      "rp_name": "Jord Cloud Chat",
+      "rp_id": "chat.jord.cloud"
+    },
+    "vapid": {
+      "public_key": "CHANGE_ME",
+      "private_key": "CHANGE_ME"
+    },
+    "bluesky": {
+      "enabled": false
+    }
+  },
+  "integrations": {
+    "search": {
+      "url": "http://fluxer-meilisearch:7700",
+      "api_key": "CHANGE_ME"
+    },
+    "voice": {
+      "enabled": true,
+      "url": "wss://voice.jord.cloud",
+      "api_key": "CHANGE_ME",
+      "api_secret": "CHANGE_ME",
+      "default_region": {
+        "id": "eu-home",
+        "name": "EU Home",
+        "emoji": "\ud83c\uddea\ud83c\uddfa",
+        "latitude": 52.37,
+        "longitude": 4.89
+      }
+    }
+  },
+  "instance": {
+    "deployment_mode": "monolith",
+    "self_hosted": true
+  }
+}

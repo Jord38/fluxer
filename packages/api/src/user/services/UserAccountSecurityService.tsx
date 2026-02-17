@@ -20,6 +20,7 @@
 import type {AuthService} from '@fluxer/api/src/auth/AuthService';
 import type {SudoVerificationResult} from '@fluxer/api/src/auth/services/SudoVerificationService';
 import {userHasMfa} from '@fluxer/api/src/auth/services/SudoVerificationService';
+import {Config} from '@fluxer/api/src/Config';
 import type {UserRow} from '@fluxer/api/src/database/types/UserTypes';
 import type {IDiscriminatorService} from '@fluxer/api/src/infrastructure/DiscriminatorService';
 import {getMetricsService} from '@fluxer/api/src/infrastructure/MetricsService';
@@ -246,7 +247,7 @@ export class UserAccountSecurityService {
 		}
 
 		const discriminatorToUse = normalizedRequestedDiscriminator ?? user.discriminator;
-		if (discriminatorToUse === 0 && user.premiumType !== UserPremiumTypes.LIFETIME) {
+		if (discriminatorToUse === 0 && !Config.instance.selfHosted && user.premiumType !== UserPremiumTypes.LIFETIME) {
 			throw InputValidationError.fromCode('discriminator', ValidationErrorCodes.VISIONARY_REQUIRED_FOR_DISCRIMINATOR);
 		}
 
@@ -286,7 +287,7 @@ export class UserAccountSecurityService {
 				ValidationErrorCodes.CHANGING_DISCRIMINATOR_REQUIRES_PREMIUM,
 			);
 		}
-		if (discriminator === 0 && user.premiumType !== UserPremiumTypes.LIFETIME) {
+		if (discriminator === 0 && !Config.instance.selfHosted && user.premiumType !== UserPremiumTypes.LIFETIME) {
 			throw InputValidationError.fromCode('discriminator', ValidationErrorCodes.VISIONARY_REQUIRED_FOR_DISCRIMINATOR);
 		}
 
