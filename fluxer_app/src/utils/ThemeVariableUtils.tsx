@@ -148,26 +148,35 @@ export function numberToHex(value: number): string {
 }
 
 export function cssColorStringToNumber(color: string): number | null {
+	if (!color || typeof color !== 'string') return null;
+	const trimmed = color.trim();
+	if (!trimmed) return null;
+
 	const canvas = document.createElement('canvas');
 	const context = canvas.getContext('2d');
 
 	if (!context) return null;
 
 	try {
-		context.fillStyle = '#000';
-		context.fillStyle = color;
+		// Two-sentinel technique: non-color values leave fillStyle unchanged.
+		// Test with two different sentinels to avoid false negatives when the
+		// actual color happens to match one of them.
+		context.fillStyle = '#aabbcc';
+		context.fillStyle = trimmed;
+		const changed1 = context.fillStyle !== '#aabbcc';
+		context.fillStyle = '#112233';
+		context.fillStyle = trimmed;
+		const changed2 = context.fillStyle !== '#112233';
+		if (!changed1 && !changed2) return null;
+
 		const parsed = String(context.fillStyle);
 
 		const match = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/i.exec(parsed);
 		if (match) {
-			const red = parseInt(match[1] ?? '0', 10);
-			const green = parseInt(match[2] ?? '0', 10);
-			const blue = parseInt(match[3] ?? '0', 10);
-			const hex = `#${clampByte(red).toString(16).padStart(2, '0')}${clampByte(green)
-				.toString(16)
-				.padStart(2, '0')}${clampByte(blue).toString(16).padStart(2, '0')}`.toUpperCase();
-
-			return Number.parseInt(hex.slice(1), 16) >>> 0;
+			const red = clampByte(parseInt(match[1] ?? '0', 10));
+			const green = clampByte(parseInt(match[2] ?? '0', 10));
+			const blue = clampByte(parseInt(match[3] ?? '0', 10));
+			return ((red << 16) | (green << 8) | blue) >>> 0;
 		}
 
 		if (/^#[0-9A-Fa-f]{6}$/.test(parsed)) {
@@ -178,4 +187,26 @@ export function cssColorStringToNumber(color: string): number | null {
 	}
 
 	return null;
+}
+
+const colorClassCache = new Map<string, boolean>();
+
+export function isColorVariable(varName: string): boolean {
+	const cached = colorClassCache.get(varName);
+	if (cached !== undefined) return cached;
+	const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+	let isColor = false;
+	if (val) {
+		const ctx = document.createElement('canvas').getContext('2d');
+		if (ctx) {
+			ctx.fillStyle = '#aabbcc';
+			ctx.fillStyle = val;
+			const c1 = ctx.fillStyle !== '#aabbcc';
+			ctx.fillStyle = '#112233';
+			ctx.fillStyle = val;
+			isColor = c1 || ctx.fillStyle !== '#112233';
+		}
+	}
+	colorClassCache.set(varName, isColor);
+	return isColor;
 }

@@ -21,6 +21,7 @@ import * as AccessibilityActionCreators from '@app/actions/AccessibilityActionCr
 import {ColorPickerField} from '@app/components/form/ColorPickerField';
 import styles from '@app/components/theme_inspector/ThemeInspectorToolbar.module.css';
 import {Button} from '@app/components/uikit/button/Button';
+import type {HoveredInfo} from '@app/lib/ThemeVariableResolver';
 import {getElementsUsingVariable, getThemeVariablesForElement} from '@app/lib/ThemeVariableResolver';
 import AccessibilityStore from '@app/stores/AccessibilityStore';
 import ThemeInspectorStore from '@app/stores/ThemeInspectorStore';
@@ -30,7 +31,8 @@ import {clsx} from 'clsx';
 import {motion, useDragControls, useMotionValue} from 'framer-motion';
 import {observer} from 'mobx-react-lite';
 import type React from 'react';
-import {useCallback, useEffect, useRef} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
+import {createPortal} from 'react-dom';
 import {useHotkeys} from 'react-hotkeys-hook';
 
 const HIGHLIGHT_ATTR = 'data-theme-inspector-highlight';
@@ -40,7 +42,7 @@ function ensureHighlightStyle(): void {
 	if (document.getElementById(HIGHLIGHT_STYLE_ID)) return;
 	const style = document.createElement('style');
 	style.id = HIGHLIGHT_STYLE_ID;
-	style.textContent = `[${HIGHLIGHT_ATTR}] { outline: 2px solid var(--brand-primary) !important; outline-offset: 1px; }`;
+	style.textContent = `[${HIGHLIGHT_ATTR}] { outline: 2px solid #7c3aed !important; outline-offset: 2px; box-shadow: inset 0 0 0 9999px rgba(124, 58, 237, 0.08), 0 0 0 4px rgba(124, 58, 237, 0.15) !important; }`;
 	document.head.appendChild(style);
 }
 
@@ -65,9 +67,37 @@ function highlightElementsForVariable(variable: string): void {
 	}
 }
 
+function removeHoverOverlay(): void {
+	// Handled by React state now
+}
+
 function getResolvedColor(variable: string): string {
 	return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
 }
+
+interface HoverOverlayState {
+	top: number;
+	left: number;
+	width: number;
+	height: number;
+	label: string;
+	labelTop: number;
+	labelLeft: number;
+}
+
+const HoverOverlay: React.FC<{overlay: HoverOverlayState}> = ({overlay}) =>
+	createPortal(
+		<>
+			<div
+				className={styles.hoverOverlay}
+				style={{top: overlay.top, left: overlay.left, width: overlay.width, height: overlay.height}}
+			/>
+			<div className={styles.hoverLabel} style={{top: overlay.labelTop, left: overlay.labelLeft}}>
+				{overlay.label}
+			</div>
+		</>,
+		document.body,
+	);
 
 const VariableList: React.FC<{
 	variables: ReadonlyArray<string>;
@@ -145,13 +175,28 @@ const SelectedVariableEditor: React.FC<{variable: string}> = observer(({variable
 	);
 });
 
+function buildElementLabel(el: Element): string {
+	let label = el.tagName.toLowerCase();
+	if (el.id) {
+		label += '#' + el.id;
+	} else if (typeof el.className === 'string' && el.className.trim()) {
+		const raw = el.className.trim().split(/\s+/)[0]!;
+		const m = raw.match(/^(\w+)\.module__(\w+)___\w+$/);
+		label += '.' + (m ? `${m[1]}.${m[2]}` : raw.length > 24 ? raw.substring(0, 24) + '\u2026' : raw);
+	}
+	return label;
+}
+
 const ThemeInspectorToolbarInner: React.FC = observer(() => {
 	const toolbarRef = useRef<HTMLDivElement>(null);
 	const selectorModeActive = ThemeInspectorStore.selectorModeActive;
 	const selectedVariable = ThemeInspectorStore.selectedVariable;
-	const hoveredVariables = ThemeInspectorStore.hoveredVariables;
-	const hoveredVariablesRef = useRef(hoveredVariables);
-	hoveredVariablesRef.current = hoveredVariables;
+	const hoveredInfo = ThemeInspectorStore.hoveredInfo;
+	const hoveredInfoRef = useRef(hoveredInfo);
+	hoveredInfoRef.current = hoveredInfo;
+
+	const [hoverOverlay, setHoverOverlay] = useState<HoverOverlayState | null>(null);
+	const lastHoverTargetRef = useRef<Element | null>(null);
 
 	const x = useMotionValue(ThemeInspectorStore.position.x);
 	const y = useMotionValue(ThemeInspectorStore.position.y);
@@ -200,14 +245,34 @@ const ThemeInspectorToolbarInner: React.FC = observer(() => {
 
 	// Capture-phase document listeners for element selector mode
 	useEffect(() => {
-		if (!selectorModeActive) return;
+		if (!selectorModeActive) {
+			setHoverOverlay(null);
+			lastHoverTargetRef.current = null;
+			return;
+		}
 
 		const handleMouseMove = (event: MouseEvent) => {
 			const target = event.target as Element | null;
-			if (!target) return;
+			if (!target || target.nodeType !== 1) return;
 			if (toolbarRef.current?.contains(target)) return;
-			const variables = getThemeVariablesForElement(target);
-			ThemeInspectorStore.setHoveredVariables(variables);
+			if (target === lastHoverTargetRef.current) return;
+			lastHoverTargetRef.current = target;
+
+			const rect = target.getBoundingClientRect();
+			const label = buildElementLabel(target);
+			const labelTop = rect.top > 24 ? rect.top - 22 : rect.bottom + 2;
+			setHoverOverlay({
+				top: rect.top,
+				left: rect.left,
+				width: rect.width,
+				height: rect.height,
+				label: `${label}  ${Math.round(rect.width)}\u00d7${Math.round(rect.height)}`,
+				labelTop,
+				labelLeft: rect.left,
+			});
+
+			const info = getThemeVariablesForElement(target);
+			ThemeInspectorStore.setHoveredInfo(info);
 		};
 
 		const handleClick = (event: MouseEvent) => {
@@ -216,11 +281,13 @@ const ThemeInspectorToolbarInner: React.FC = observer(() => {
 			if (toolbarRef.current?.contains(target)) return;
 			event.preventDefault();
 			event.stopPropagation();
-			const current = hoveredVariablesRef.current;
-			if (current.length === 1) {
-				ThemeInspectorStore.selectVariable(current[0] as string);
-			} else if (current.length > 1) {
-				ThemeInspectorStore.pinVariables(current);
+			const current = hoveredInfoRef.current;
+			if (!current) return;
+			const all = [...current.colors, ...current.other];
+			if (all.length === 1) {
+				ThemeInspectorStore.selectVariable(all[0] as string);
+			} else if (all.length > 0) {
+				ThemeInspectorStore.pinHoveredInfo();
 			}
 		};
 
@@ -240,6 +307,8 @@ const ThemeInspectorToolbarInner: React.FC = observer(() => {
 			document.removeEventListener('click', handleClick, true);
 			document.removeEventListener('keydown', handleKeyDown, true);
 			document.body.style.cursor = '';
+			setHoverOverlay(null);
+			lastHoverTargetRef.current = null;
 		};
 	}, [selectorModeActive]);
 
@@ -251,17 +320,40 @@ const ThemeInspectorToolbarInner: React.FC = observer(() => {
 		};
 	}, []);
 
+	const hasColors = hoveredInfo != null && hoveredInfo.colors.length > 0;
+	const hasOther = hoveredInfo != null && hoveredInfo.other.length > 0;
+	const hasAny = hasColors || hasOther;
+
 	let bodyContent: React.ReactNode;
 
 	if (selectedVariable) {
 		bodyContent = <SelectedVariableEditor variable={selectedVariable} />;
-	} else if (hoveredVariables.length > 0) {
+	} else if (hoveredInfo && hasAny) {
 		bodyContent = (
 			<>
-				{!selectorModeActive && (
-					<div className={styles.hint}>Pick a variable to edit:</div>
+				<div className={styles.elementInfo}>{hoveredInfo.elementInfo}</div>
+				{hasColors && (
+					<>
+						<div className={styles.sectionLabel}>Colors ({hoveredInfo.colors.length})</div>
+						<VariableList
+							variables={hoveredInfo.colors}
+							onSelect={handleVariableSelect}
+							onHover={handleVariableHover}
+						/>
+					</>
 				)}
-				<VariableList variables={hoveredVariables} onSelect={handleVariableSelect} onHover={handleVariableHover} />
+				{hasOther && (
+					<details className={styles.inheritedSection}>
+						<summary className={styles.sectionLabelToggle}>
+							Layout &amp; other ({hoveredInfo.other.length})
+						</summary>
+						<VariableList
+							variables={hoveredInfo.other}
+							onSelect={handleVariableSelect}
+							onHover={handleVariableHover}
+						/>
+					</details>
+				)}
 			</>
 		);
 	} else if (selectorModeActive) {
@@ -275,34 +367,37 @@ const ThemeInspectorToolbarInner: React.FC = observer(() => {
 	}
 
 	return (
-		<motion.div
-			ref={toolbarRef}
-			className={styles.container}
-			style={{x, y}}
-			drag
-			dragControls={dragControls}
-			dragListener={false}
-			dragMomentum={false}
-			dragElastic={0}
-			onDragEnd={handleDragEnd}
-		>
-			<div className={styles.header} onPointerDown={handleHeaderPointerDown}>
-				<PaletteIcon weight="duotone" className={styles.headerIcon} />
-				<span className={styles.headerTitle}>Theme Inspector</span>
-				<button
-					type="button"
-					className={clsx(styles.headerButton, selectorModeActive && styles.headerButtonActive)}
-					onClick={handleToggleSelector}
-					aria-label="Toggle element selector"
-				>
-					<CrosshairSimpleIcon weight="bold" className={styles.headerButtonIcon} />
-				</button>
-				<button type="button" className={styles.headerButton} onClick={handleClose} aria-label="Close theme inspector">
-					<XIcon weight="bold" className={styles.headerButtonIcon} />
-				</button>
-			</div>
-			<div className={styles.body}>{bodyContent}</div>
-		</motion.div>
+		<>
+			{selectorModeActive && hoverOverlay && <HoverOverlay overlay={hoverOverlay} />}
+			<motion.div
+				ref={toolbarRef}
+				className={styles.container}
+				style={{x, y}}
+				drag
+				dragControls={dragControls}
+				dragListener={false}
+				dragMomentum={false}
+				dragElastic={0}
+				onDragEnd={handleDragEnd}
+			>
+				<div className={styles.header} onPointerDown={handleHeaderPointerDown}>
+					<PaletteIcon weight="duotone" className={styles.headerIcon} />
+					<span className={styles.headerTitle}>Theme Inspector</span>
+					<button
+						type="button"
+						className={clsx(styles.headerButton, selectorModeActive && styles.headerButtonActive)}
+						onClick={handleToggleSelector}
+						aria-label="Toggle element selector"
+					>
+						<CrosshairSimpleIcon weight="bold" className={styles.headerButtonIcon} />
+					</button>
+					<button type="button" className={styles.headerButton} onClick={handleClose} aria-label="Close theme inspector">
+						<XIcon weight="bold" className={styles.headerButtonIcon} />
+					</button>
+				</div>
+				<div className={styles.body}>{bodyContent}</div>
+			</motion.div>
+		</>
 	);
 });
 

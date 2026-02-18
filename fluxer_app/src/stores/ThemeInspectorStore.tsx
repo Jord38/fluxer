@@ -17,6 +17,7 @@
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type {HoveredInfo} from '@app/lib/ThemeVariableResolver';
 import AppStorage from '@app/lib/AppStorage';
 import {makeAutoObservable, runInAction} from 'mobx';
 
@@ -31,7 +32,7 @@ class ThemeInspectorStore {
 	isOpen = false;
 	selectorModeActive = false;
 	selectedVariable: string | null = null;
-	hoveredVariables: ReadonlyArray<string> = [];
+	hoveredInfo: HoveredInfo | null = null;
 	highlightedVariable: string | null = null;
 	position: Position = {x: 20, y: 20};
 
@@ -62,7 +63,7 @@ class ThemeInspectorStore {
 			this.isOpen = false;
 			this.selectorModeActive = false;
 			this.selectedVariable = null;
-			this.hoveredVariables = [];
+			this.hoveredInfo = null;
 			this.highlightedVariable = null;
 		});
 	}
@@ -71,21 +72,20 @@ class ThemeInspectorStore {
 		runInAction(() => {
 			this.selectorModeActive = !this.selectorModeActive;
 			if (!this.selectorModeActive) {
-				this.hoveredVariables = [];
+				this.hoveredInfo = null;
 			}
 		});
 	}
 
-	setHoveredVariables(variables: ReadonlyArray<string>): void {
+	setHoveredInfo(info: HoveredInfo): void {
 		runInAction(() => {
-			this.hoveredVariables = variables;
+			this.hoveredInfo = info;
 		});
 	}
 
-	pinVariables(variables: ReadonlyArray<string>): void {
+	pinHoveredInfo(): void {
 		runInAction(() => {
 			this.selectorModeActive = false;
-			this.hoveredVariables = variables;
 			this.selectedVariable = null;
 		});
 	}

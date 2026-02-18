@@ -17,7 +17,7 @@
  * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {THEME_COLOR_VARIABLES, THEME_FONT_VARIABLES} from '@app/utils/ThemeVariableUtils';
+import {THEME_COLOR_VARIABLES, THEME_FONT_VARIABLES, isColorVariable} from '@app/utils/ThemeVariableUtils';
 
 const THEME_VARIABLE_SET = new Set([...THEME_COLOR_VARIABLES, ...THEME_FONT_VARIABLES]);
 const VAR_PATTERN = /var\(\s*(--[a-zA-Z0-9_-]+)/g;
@@ -28,8 +28,40 @@ interface SelectorEntry {
 	variables: ReadonlyArray<string>;
 }
 
+export interface HoveredInfo {
+	elementInfo: string;
+	colors: ReadonlyArray<string>;
+	other: ReadonlyArray<string>;
+}
+
 let cachedEntries: ReadonlyArray<SelectorEntry> | null = null;
 let cacheTimestamp = 0;
+
+function extractVarEntries(rules: CSSRuleList): Array<SelectorEntry> {
+	const entries: Array<SelectorEntry> = [];
+	for (let j = 0; j < rules.length; j++) {
+		const rule = rules[j]!;
+		if (rule instanceof CSSStyleRule) {
+			const cssText = rule.style.cssText;
+			if (!cssText.includes('var(')) continue;
+			const variables: Array<string> = [];
+			let match: RegExpExecArray | null;
+			VAR_PATTERN.lastIndex = 0;
+			while ((match = VAR_PATTERN.exec(cssText)) !== null) {
+				const varName = match[1] as string;
+				if (THEME_VARIABLE_SET.has(varName) && !variables.includes(varName)) {
+					variables.push(varName);
+				}
+			}
+			if (variables.length > 0) {
+				entries.push({selector: rule.selectorText, variables});
+			}
+		} else if ((rule as CSSGroupingRule).cssRules) {
+			entries.push(...extractVarEntries((rule as CSSGroupingRule).cssRules));
+		}
+	}
+	return entries;
+}
 
 function scanStyleSheets(): ReadonlyArray<SelectorEntry> {
 	const now = Date.now();
@@ -40,35 +72,15 @@ function scanStyleSheets(): ReadonlyArray<SelectorEntry> {
 	const entries: Array<SelectorEntry> = [];
 
 	for (let i = 0; i < document.styleSheets.length; i++) {
-		const sheet = document.styleSheets[i];
+		const sheet = document.styleSheets[i]!;
 		let rules: CSSRuleList;
 		try {
 			rules = sheet.cssRules;
 		} catch {
 			continue;
 		}
-
-		for (let j = 0; j < rules.length; j++) {
-			const rule = rules[j];
-			if (!(rule instanceof CSSStyleRule)) continue;
-
-			const cssText = rule.style.cssText;
-			if (!cssText.includes('var(')) continue;
-
-			const variables: Array<string> = [];
-			let match: RegExpExecArray | null;
-			VAR_PATTERN.lastIndex = 0;
-			while ((match = VAR_PATTERN.exec(cssText)) !== null) {
-				const varName = match[1] as string;
-				if (THEME_VARIABLE_SET.has(varName) && !variables.includes(varName)) {
-					variables.push(varName);
-				}
-			}
-
-			if (variables.length > 0) {
-				entries.push({selector: rule.selectorText, variables});
-			}
-		}
+		if (!rules) continue;
+		entries.push(...extractVarEntries(rules));
 	}
 
 	cachedEntries = entries;
@@ -81,13 +93,10 @@ export function invalidateCache(): void {
 	cacheTimestamp = 0;
 }
 
-export function getThemeVariablesForElement(el: Element): ReadonlyArray<string> {
+export function getThemeVariablesForElement(el: Element): HoveredInfo {
 	const entries = scanStyleSheets();
 	const found = new Set<string>();
 
-	// Walk up the DOM tree so we also find variables from ancestor rules
-	// (e.g. a parent div sets background-color: var(--background-primary))
-	// Stop before <html> and <body> to avoid picking up root-level definitions
 	let current: Element | null = el;
 	let depth = 0;
 	const MAX_DEPTH = 15;
@@ -113,7 +122,27 @@ export function getThemeVariablesForElement(el: Element): ReadonlyArray<string> 
 		depth++;
 	}
 
-	return Array.from(found);
+	const all = Array.from(found);
+	const colors: Array<string> = [];
+	const other: Array<string> = [];
+	for (const v of all) {
+		if (isColorVariable(v)) {
+			colors.push(v);
+		} else {
+			other.push(v);
+		}
+	}
+
+	let info = el.tagName.toLowerCase();
+	if (el.id) {
+		info += `#${el.id}`;
+	} else if (typeof el.className === 'string' && el.className.trim()) {
+		const raw = el.className.trim().split(/\s+/)[0]!;
+		const m = raw.match(/^(\w+)\.module__(\w+)___\w+$/);
+		info += '.' + (m ? `${m[1]}.${m[2]}` : raw.length > 30 ? raw.substring(0, 30) + '\u2026' : raw);
+	}
+
+	return {elementInfo: info, colors, other};
 }
 
 export function getElementsUsingVariable(variable: string): ReadonlyArray<Element> {

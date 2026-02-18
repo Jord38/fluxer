@@ -181,3 +181,87 @@
 	flex-wrap: wrap;
 }
 
+/* Hover overlay (element picker) */
+.hoverOverlay {
+	position: fixed;
+	pointer-events: none;
+	z-index: calc(var(--z-index-overlay, 40000) - 1);
+	background: rgba(124, 58, 237, 0.08);
+	border: 2px solid rgba(124, 58, 237, 0.6);
+	border-radius: 2px;
+}
+
+.hoverLabel {
+	position: fixed;
+	pointer-events: none;
+	z-index: calc(var(--z-index-overlay, 40000) - 1);
+	background: rgba(124, 58, 237, 0.9);
+	color: #fff;
+	font-size: 10px;
+	font-family: var(--font-mono, monospace);
+	padding: 1px 6px;
+	border-radius: 2px;
+	white-space: nowrap;
+	max-width: 320px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.6;
+}
+
+/* Element info bar */
+.elementInfo {
+	padding: 4px 8px;
+	margin: -10px -12px 0;
+	font-size: 11px;
+	font-family: var(--font-mono, monospace);
+	color: var(--text-secondary);
+	background: rgba(0, 0, 0, 0.15);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Section labels */
+.sectionLabel {
+	padding: 2px 0;
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-tertiary);
+}
+
+.sectionLabelToggle {
+	composes: sectionLabel;
+	cursor: pointer;
+	user-select: none;
+	list-style: none;
+	padding: 4px 0 2px;
+}
+
+.sectionLabelToggle::-webkit-details-marker {
+	display: none;
+}
+
+.sectionLabelToggle::before {
+	content: '\25B6';
+	display: inline-block;
+	font-size: 8px;
+	margin-right: 4px;
+	transition: transform 100ms;
+}
+
+details[open] > .sectionLabelToggle::before {
+	transform: rotate(90deg);
+}
+
+.sectionLabelToggle:hover {
+	color: var(--text-primary);
+}
+
+.inheritedSection {
+	border-top: 1px solid rgba(255, 255, 255, 0.06);
+	padding-top: 2px;
+}
+
