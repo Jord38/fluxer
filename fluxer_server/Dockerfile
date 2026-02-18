@@ -193,20 +193,11 @@ COPY --from=gateway-build /usr/src/app/gateway/fluxer_gateway/_build/prod/rel/fl
 COPY --from=app-build /usr/src/app/fluxer_app/dist /usr/src/app/assets
 
 COPY fluxer_server/fonts/ibm-plex.css /usr/src/app/assets/fonts/ibm-plex.css
+COPY fluxer_server/fonts/IBMPlexSans/ /usr/src/app/assets/fonts/IBMPlexSans/
+COPY fluxer_server/fonts/IBMPlexMono/ /usr/src/app/assets/fonts/IBMPlexMono/
 COPY fluxer_static_dl/web/ /usr/src/app/assets/web/
 COPY fluxer_static_dl/avatars/ /usr/src/app/assets/avatars/
 COPY fluxer_static_dl/badges/ /usr/src/app/assets/badges/
-
-RUN mkdir -p /usr/src/app/assets/fonts/IBMPlexSans /usr/src/app/assets/fonts/IBMPlexMono && \
-	cd /tmp && \
-	npm pack @ibm/plex-sans@1.1.0 --pack-destination /tmp && \
-	tar xzf /tmp/ibm-plex-sans-*.tgz && \
-	cp /tmp/package/fonts/complete/woff2/*.woff2 /usr/src/app/assets/fonts/IBMPlexSans/ && \
-	rm -rf /tmp/package /tmp/ibm-plex-sans-*.tgz && \
-	npm pack @ibm/plex-mono@1.1.0 --pack-destination /tmp && \
-	tar xzf /tmp/ibm-plex-mono-*.tgz && \
-	cp /tmp/package/fonts/complete/woff2/*.woff2 /usr/src/app/assets/fonts/IBMPlexMono/ && \
-	rm -rf /tmp/package /tmp/ibm-plex-mono-*.tgz
 
 RUN mkdir -p /usr/src/app/data/storage && \
 	mkdir -p /usr/src/app/data/db && \

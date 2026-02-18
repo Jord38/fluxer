@@ -83,8 +83,8 @@ var {
 }
 
 :root {
-	--font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
-	--font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+	--font-sans: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'IBM Plex Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
 	--saturation-factor: 1;
 	--user-select: auto;
 
