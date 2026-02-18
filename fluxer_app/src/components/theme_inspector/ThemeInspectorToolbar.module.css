@@ -1,0 +1,183 @@
+/*
+ * Copyright (C) 2026 Fluxer Contributors
+ *
+ * This file is part of Fluxer.
+ *
+ * Fluxer is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Fluxer is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with Fluxer. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+.container {
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: var(--z-index-overlay, 40000);
+	width: 320px;
+	max-height: 80vh;
+	display: flex;
+	flex-direction: column;
+	border-radius: 12px;
+	background-color: var(--background-secondary);
+	box-shadow:
+		0 8px 32px rgba(0, 0, 0, 0.3),
+		0 2px 8px rgba(0, 0, 0, 0.15);
+	overflow: hidden;
+	user-select: none;
+	touch-action: none;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	background-color: var(--background-tertiary);
+	cursor: grab;
+	flex-shrink: 0;
+}
+
+.header:active {
+	cursor: grabbing;
+}
+
+.headerIcon {
+	color: var(--brand-primary);
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+}
+
+.headerTitle {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--text-primary);
+	flex: 1;
+	line-height: 1.2;
+}
+
+.headerButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 6px;
+	color: var(--text-secondary);
+	cursor: pointer;
+	flex-shrink: 0;
+	transition: background-color 150ms, color 150ms;
+	background: none;
+	border: none;
+	padding: 0;
+}
+
+.headerButton:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-primary);
+}
+
+.headerButtonActive {
+	background-color: var(--brand-primary);
+	color: var(--text-on-brand-primary);
+}
+
+.headerButtonActive:hover {
+	background-color: var(--brand-primary);
+	color: var(--text-on-brand-primary);
+	opacity: 0.9;
+}
+
+.headerButtonIcon {
+	width: 16px;
+	height: 16px;
+}
+
+.body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 10px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.hint {
+	font-size: 0.75rem;
+	color: var(--text-tertiary);
+	line-height: 1.4;
+	text-align: center;
+	padding: 12px 0;
+}
+
+.variableList {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.variableItem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 100ms;
+	background: none;
+	border: none;
+	text-align: left;
+	width: 100%;
+	color: var(--text-primary);
+}
+
+.variableItem:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.swatch {
+	width: 16px;
+	height: 16px;
+	border-radius: 4px;
+	border: 1px solid var(--border-color);
+	flex-shrink: 0;
+}
+
+.variableName {
+	font-size: 0.75rem;
+	font-family: var(--font-mono, monospace);
+	color: var(--text-secondary);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.selectedSection {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.selectedHeader {
+	font-size: 0.75rem;
+	font-family: var(--font-mono, monospace);
+	color: var(--text-primary);
+	font-weight: 600;
+	word-break: break-all;
+}
+
+.actionButtons {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+

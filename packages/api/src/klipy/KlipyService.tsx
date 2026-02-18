@@ -115,7 +115,7 @@ export class KlipyService implements IKlipyService {
 
 	private async fetchAndTransformGifs(url: URL): Promise<Array<KlipyGifResponse>> {
 		const {results} = await this.fetchKlipyData<{results: Array<KlipyGif>}>(url);
-		return results.map((gif) => this.transformKlipyGif(gif));
+		return results.filter((gif) => gif.media_formats?.webm).map((gif) => this.transformKlipyGif(gif));
 	}
 
 	private async getCache<T>(key: string): Promise<{data: T; isStale: boolean} | null> {

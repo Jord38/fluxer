@@ -20,6 +20,10 @@
 import * as QuickSwitcherActionCreators from '@app/actions/QuickSwitcherActionCreators';
 import {QuickSwitcherBottomSheet} from '@app/components/bottomsheets/QuickSwitcherBottomSheet';
 import {Modals} from '@app/components/modals/Modals';
+import {
+	ThemeInspectorHotkeyListener,
+	ThemeInspectorToolbar,
+} from '@app/components/theme_inspector/ThemeInspectorToolbar';
 import {ContextMenu} from '@app/components/uikit/context_menu/ContextMenu';
 import {Popouts} from '@app/components/uikit/popout/Popouts';
 import {Toasts} from '@app/components/uikit/toast/Toasts';
@@ -52,6 +56,8 @@ const GlobalOverlays: React.FC = observer(() => {
 			<ContextMenu />
 			<Toasts />
 			<PiPOverlay />
+			<ThemeInspectorToolbar />
+			<ThemeInspectorHotkeyListener />
 			{isMobile && <QuickSwitcherBottomSheet isOpen={quickSwitcherOpen} onClose={QuickSwitcherActionCreators.hide} />}
 		</>
 	);

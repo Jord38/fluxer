@@ -138,7 +138,8 @@ COPY tsconfigs /usr/src/app/tsconfigs
 
 COPY packages/ ./packages/
 COPY fluxer_app/ ./fluxer_app/
-COPY fluxer_server/build-config.json /tmp/build-config.json
+ARG BUILD_CONFIG=fluxer_server/build-config.json
+COPY ${BUILD_CONFIG} /tmp/build-config.json
 
 ENV FLUXER_CONFIG=/tmp/build-config.json
 
